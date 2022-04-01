@@ -1,16 +1,10 @@
-#include <stddef.h>
-#include <stdlib.h>
-#include <assert.h>
-#define FLAT_INCLUDES
-#include "../../vec/vec.h"
-#include "../../vec/vec3.h"
-#include "../../range/def.h"
-#include "../../vec/range_vec3.h"
-#include "../../window/def.h"
-#include "../../window/alloc.h"
-#include "def.h"
 #include "build.h"
+#include "../../vec/range_vec3.h"
+#include <assert.h>
+#include <stdlib.h>
+#include "../../window/alloc.h"
 #include "../../log/log.h"
+#include "../../range/alloc.h"
 
 range_typedef(size_t,size_t);
 window_typedef(size_t, size_t);
@@ -179,8 +173,6 @@ static void sort_list (sorted_lists * sorted, const phys_mesh_tri * plane, const
     assert (list != &sorted->positive->list.region.const_cast);
     assert (list != &sorted->negative->list.region.const_cast);
 
-    //log_debug ("sorting %d", range_count(*list));
-	
     for_range (index, *list)
     {
 	tri = tris->begin + *index;
@@ -211,23 +203,10 @@ static void sort_list (sorted_lists * sorted, const phys_mesh_tri * plane, const
 	}
     }
 
-    /*log_debug ("diff %d, count %d", range_count (*list)
-	       -range_count(sorted->positive->list.region)
-	       -range_count(sorted->cross->list.region)
-	       -range_count(sorted->negative->list.region),
-	       range_count(*list));*/
-    
     assert (range_count (*list) ==
 	    +range_count(sorted->positive->list.region)
 	    +range_count(sorted->cross->list.region)
 	    +range_count(sorted->negative->list.region));
-    
-    log_debug ("%3d = %3d %3d %3d",
-	       range_count (*list),
-	       range_count(sorted->positive->list.region),
-	       range_count(sorted->cross->list.region),
-	       range_count(sorted->negative->list.region));
-
 }
 
 typedef struct {
@@ -244,12 +223,9 @@ void run_iteration (range_phys_mesh_node * nodes, state * state, task * next, co
     if (range_is_empty (next->list.region))
     {
 	*next->result = 0;
-	//log_debug ("empty");
 	return;
     }
 
-    //log_debug ("iteration");
-    
     *next->result = state->node_count++;
 
     phys_mesh_node * node = nodes->begin + *next->result;
@@ -305,26 +281,19 @@ void phys_mesh_build (range_phys_mesh_node * nodes, const range_const_phys_mesh_
 
     task * initial_task = task_alloc (&build_state.free, &dummy_index);
 
-    //assert (dummy_index == 0);
-    
     for (size_t i = 0; i < tri_count; i++)
     {
 	*window_push (initial_task->list) = i;
     }
 
-    //log_debug ("count %p: %d", initial_task, range_count(initial_task->list.region));
-    
     task_push (&build_state.used, initial_task);
-    
-    //log_debug ("count2 %p: %d", initial_task, range_count(initial_task->list.region));
     
     task * next_task;
     
     while (build_state.used)
     {
 	next_task = task_pop (&build_state.used);
-	//log_debug ("count %p: %d", next_task, range_count(next_task->list.region));
-
+	
 	run_iteration(nodes, &build_state, next_task, tris);
 
 	next_task->result = NULL;

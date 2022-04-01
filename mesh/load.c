@@ -1,36 +1,20 @@
-#include <stddef.h>
-#include <stdbool.h>
-#include <stdint.h>
+#include "load.h"
+#include "../../gltf/convert.h"
+#include "../../gltf/env.h"
+#include "../../log/log.h"
 #include <math.h>
 #include <stdlib.h>
+#include "../../convert/fd/source.h"
+#include <fcntl.h>
+#include <stdio.h>
 #include <assert.h>
-#include "../../../glad/include/glad/glad.h"
-#define FLAT_INCLUDES
-#include "../../vec/vec.h"
-#include "../../vec/vec3.h"
-#include "../../range/def.h"
-#include "../../window/def.h"
-#include "../../window/alloc.h"
-#include "../../vec/range_vec3.h"
-#include "../../convert/source.h"
-#include "def.h"
-#include "../../keyargs/keyargs.h"
-#include "../../gltf/def.h"
-#include "../../gltf/env.h"
-#include "../../gltf/convert.h"
-#include "../../log/log.h"
 #include "build.h"
-#include "load.h"
+#include "../../window/alloc.h"
+#include "../../gltf/parse.h"
 
-
-void phys_mesh_tri_from_fvec3 (phys_mesh_tri * result, fvec3 positions_orig[3])
+static void phys_mesh_tri_from_fvec3 (phys_mesh_tri * result, fvec3 positions_orig[3])
 {
     fvec3 positions_hack[3] =
-/*	{
-	    vec3_scale_init(positions_orig[0], -1),
-	    vec3_scale_init(positions_orig[1], -1),
-	    vec3_scale_init(positions_orig[2], -1)
-	    };*/
     {
 	positions_orig[0],
 	positions_orig[1],
@@ -40,8 +24,6 @@ void phys_mesh_tri_from_fvec3 (phys_mesh_tri * result, fvec3 positions_orig[3])
     fvec3 a = vec3_subtract_init(positions_hack[0], positions_hack[1]);
     fvec3 b = vec3_subtract_init(positions_hack[0], positions_hack[2]);
 
-    //log_debug ("delta [%f %f %f] [%f %f %f]", a.x, a.y, a.z, b.x, b.y, b.z);
-    
     fvec3 cross = vec3_cross (a, b);
 
     fvec cross_scale = 1.0 / sqrt (cross.x * cross.x + cross.y * cross.y + cross.z * cross.z);
@@ -53,8 +35,6 @@ void phys_mesh_tri_from_fvec3 (phys_mesh_tri * result, fvec3 positions_orig[3])
     result->position[2] = (fvec3) vec3_initializer (positions_hack[2]);
     
     result->normal = cross;
-
-    //log_debug ("Loaded [%f %f %f]", cross.x, cross.y, cross.z);
 }
 
 typedef struct {
@@ -64,7 +44,7 @@ typedef struct {
 }
     phys_mesh_tri_target;
 
-bool phys_mesh_tri_loader(void * target_void, const fvec3 * input)
+static bool phys_mesh_tri_loader(void * target_void, const fvec3 * input)
 {
     phys_mesh_tri_target * target = target_void;
 
@@ -74,43 +54,25 @@ bool phys_mesh_tri_loader(void * target_void, const fvec3 * input)
     {
 	target->count = 0;
 
-	/*log_debug ("positions [%f %f %f] [%f %f %f] [%f %f %f]",
-		   target->positions[0].x,
-		   target->positions[0].y,
-		   target->positions[0].z,
-		   target->positions[1].x,
-		   target->positions[1].y,
-		   target->positions[1].z,
-		   target->positions[2].x,
-		   target->positions[2].y,
-		   target->positions[2].z);*/
-	
 	phys_mesh_tri_from_fvec3(window_push(*target->tris), target->positions);
     }
 
     return true;
 }
 
-bool phys_mesh_tri_load (window_phys_mesh_tri * result, convert_source * source)
+bool phys_mesh_tri_load_glb (window_phys_mesh_tri * result, const glb * glb)
 {
-    glb_toc toc;
-    gltf gltf;
     gltf_accessor_env env;
     gltf_mesh * mesh;
     gltf_mesh_primitive * primitive;
     window_gltf_index indices = {0};
     phys_mesh_tri_target target = { .tris = result };
-
-    if (!gltf_load_from_source(&gltf, &toc, source))
-    {
-	log_fatal ("Could not load from source");
-    }
-
-    for_range(mesh, gltf.meshes)
+    
+    for_range(mesh, glb->gltf.meshes)
     {
 	for_range(primitive, mesh->primitives)
 	{
-	    if (!gltf_accessor_env_setup (&env, &toc, primitive->indices))
+	    if (!gltf_accessor_env_setup (&env, &glb->toc, primitive->indices))
 	    {
 		log_fatal ("Invalid index accessor");
 	    }
@@ -122,7 +84,7 @@ bool phys_mesh_tri_load (window_phys_mesh_tri * result, convert_source * source)
 		log_fatal ("Could not load indicies");
 	    }
 
-	    if (!gltf_accessor_env_setup (&env, &toc, primitive->attributes.position))
+	    if (!gltf_accessor_env_setup (&env, &glb->toc, primitive->attributes.position))
 	    {
 		log_fatal ("Invalid position accessor");
 	    }
@@ -146,8 +108,62 @@ bool phys_mesh_tri_load (window_phys_mesh_tri * result, convert_source * source)
 fail:
     free (indices.alloc.begin);
     return false;
+
 }
 
+bool phys_mesh_tri_load_source (window_phys_mesh_tri * result, convert_source * source)
+{
+    glb glb = {0};
+    
+    if (!glb_load_from_source(&glb, source))
+    {
+	log_fatal ("Could not load from source");
+    }
+
+    if (!phys_mesh_tri_load_glb (result, &glb))
+    {
+	log_fatal ("Could not load tris from glb");
+    }
+
+    glb_clear (&glb);
+
+    return true;
+    
+fail:
+    glb_clear (&glb);
+    return false;
+}
+
+
+
+/*
+bool phys_mesh_tri_load_path (window_phys_mesh_tri * result, const char * path)
+{
+    window_unsigned_char buffer = {0};
+
+    fd_source fd_source = fd_source_init (open (path, O_RDONLY), &buffer);
+
+    if (fd_source.fd < 0)
+    {
+	perror (path);
+	log_fatal ("Could not open file for triangle loading");
+    }
+
+    if (!phys_mesh_tri_load_source(result, &fd_source.source))
+    {
+	log_fatal ("Failed to load triangles from %s", path);
+    }
+
+    convert_source_clear (&fd_source.source);
+    
+    return true;
+
+fail:
+    convert_source_clear (&fd_source.source);
+    return false;
+}
+*/
+/*
 bool phys_mesh_node_load (range_phys_mesh_node * nodes, convert_source * source)
 {
     window_phys_mesh_tri tris = {0};
@@ -163,3 +179,30 @@ bool phys_mesh_node_load (range_phys_mesh_node * nodes, convert_source * source)
     free (tris.alloc.begin);
     return true;
 }
+
+bool phys_mesh_node_load_path (range_phys_mesh_node * nodes, const char * path)
+{
+    window_unsigned_char buffer = {0};
+
+    fd_source fd_source = fd_source_init (open (path, O_RDONLY), &buffer);
+
+    if (fd_source.fd < 0)
+    {
+	perror (path);
+	log_fatal ("Could not open file for physics mesh generation");
+    }
+
+    if (!phys_mesh_node_load(nodes, &fd_source.source))
+    {
+	log_fatal ("Failed to load from source");
+    }
+    
+    convert_source_clear (&fd_source.source);
+
+    return true;
+
+fail:
+    convert_source_clear (&fd_source.source);
+    return false;
+}
+*/
