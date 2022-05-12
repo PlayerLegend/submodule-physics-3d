@@ -34,7 +34,7 @@ int main(int argc, char * argv[])
 
     range_phys_mesh_node nodes = {0};
     
-    phys_mesh_build(&nodes, &tris.region.const_cast);
+    phys_mesh_build(&nodes, &tris.region.alias_const);
 
     window_clear (buffer);
     window_clear (tris);

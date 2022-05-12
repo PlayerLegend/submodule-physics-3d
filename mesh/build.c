@@ -169,9 +169,9 @@ static void sort_list (sorted_lists * sorted, const phys_mesh_tri * plane, const
 
     size_t tri_index;
 
-    assert (list != &sorted->cross->list.region.const_cast);
-    assert (list != &sorted->positive->list.region.const_cast);
-    assert (list != &sorted->negative->list.region.const_cast);
+    assert (list != &sorted->cross->list.region.alias_const);
+    assert (list != &sorted->positive->list.region.alias_const);
+    assert (list != &sorted->negative->list.region.alias_const);
 
     for_range (index, *list)
     {
@@ -260,7 +260,7 @@ void run_iteration (range_phys_mesh_node * nodes, state * state, task * next, co
     
     const phys_mesh_tri * plane = tris->begin + plane_index;
     
-    sort_list(&lists, plane, &next->list.region.const_cast, tris);
+    sort_list(&lists, plane, &next->list.region.alias_const, tris);
 
     task_push (&state->used, lists.positive);
     task_push (&state->used, lists.negative);

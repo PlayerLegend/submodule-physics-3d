@@ -49,15 +49,15 @@ int main(int argc, char * argv[])
     load_glb_path (glb_range.begin + 1, argv[2]);
 
     draw_buffer * draw_buffer;
-    assert (draw_buffer_load_batch(&draw_buffer, &glb_range.const_cast));
+    assert (draw_buffer_load_batch(&draw_buffer, &glb_range.alias_const));
     assert (draw_buffer);
 
     range_draw_mesh draw_meshes;
     draw_buffer_mesh_access(&draw_meshes, draw_buffer);
     
     draw_mesh_instance instance[2] =
-	{ { .scale = 1.0, .quaternion = { .w = 1 } },
-	  { .scale = 1.0, .quaternion = { .w = 1 } }, };
+	{ { .origin.scale = 1.0, .origin.quaternion = { .w = 1 } },
+	  { .origin.scale = 1.0, .origin.quaternion = { .w = 1 } }, };
     
     mesh_instance_set_mesh(instance, draw_meshes.begin);
     mesh_instance_set_mesh(instance + 1, draw_meshes.begin + 1);
@@ -75,7 +75,7 @@ int main(int argc, char * argv[])
     while (!ui_window_should_close(window))
     {
 	draw_buffer_draw (draw_buffer, &view, shader);
-	instance[0].position.x = sin(start_time);
+	instance[0].origin.position.x = sin(start_time);
 	//view.position.x = sin(start_time);
 	delta_time = ui_get_time() - start_time;
 	start_time += delta_time;
@@ -85,7 +85,7 @@ int main(int argc, char * argv[])
 	{
 	    continue;
 	}
-	vec4_apply_rotation_axis(&instance[0].quaternion, &axis);
+	vec4_apply_rotation_axis(&instance[0].origin.quaternion, &axis);
 	assert (glGetError() == GL_NO_ERROR);
 	ui_window_swap(window);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

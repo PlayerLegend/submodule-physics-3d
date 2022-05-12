@@ -7,9 +7,9 @@ test/phys-mesh-load: \
 	src/gltf/gltf.o \
 	src/json/json.o \
 	src/log/log.o \
-	src/physics/mesh/build.o \
-	src/physics/mesh/load.o \
-	src/physics/mesh/test/load.test.o \
+	src/physics-3d/mesh/build.o \
+	src/physics-3d/mesh/load.o \
+	src/physics-3d/mesh/test/load.test.o \
 	src/range/range_strdup_to_string.o \
 	src/range/range_streq_string.o \
 	src/range/streq.o \
@@ -20,7 +20,7 @@ test/phys-mesh-load: \
 	src/window/vprintf.o \
 	src/window/vprintf_append.o \
 
-phys-mesh-tests: test/phys-mesh-load
-tests: phys-mesh-tests
+#phys-mesh-tests: test/phys-mesh-load
+#tests: phys-mesh-tests
 
 C_PROGRAMS += test/phys-mesh-load

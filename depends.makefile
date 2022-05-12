@@ -71,6 +71,7 @@ src/physics-3d/test/visual-mesh-traceline/test.o: src/keyargs/keyargs.h
 src/physics-3d/test/visual-mesh-traceline/test.o: src/log/log.h
 src/physics-3d/test/visual-mesh-traceline/test.o: src/range/alloc.h
 src/physics-3d/test/visual-mesh-traceline/test.o: src/range/def.h
+src/physics-3d/test/visual-mesh-traceline/test.o: src/vec/object3.h
 src/physics-3d/test/visual-mesh-traceline/test.o: src/vec/vec.h
 src/physics-3d/test/visual-mesh-traceline/test.o: src/vec/vec3.h
 src/physics-3d/test/visual-mesh-traceline/test.o: src/vec/vec4.h
