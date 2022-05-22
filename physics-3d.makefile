@@ -29,6 +29,12 @@ test/visual-mesh-traceline: \
 	src/log/log.o \
 	src/glad/glad.o \
 	src/draw-3d/buffer/loader.o \
+	src/physics-3d/mesh/load.o \
+	src/physics-3d/mesh/build.o \
+	src/physics-3d/mesh/subset.o \
+	src/physics-3d/set_hull.o \
+	src/physics-3d/trace/line.o \
+	src/physics-3d/trace/def.o \
 	src/convert/source.o \
 	src/convert/fd/source.o \
 	src/gltf/convert.o \

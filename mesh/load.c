@@ -1,10 +1,12 @@
 #include "load.h"
+#include "../../convert/status.h"
+#include "../../convert/source.h"
+#include "../../convert/fd/source.h"
 #include "../../gltf/convert.h"
 #include "../../gltf/env.h"
 #include "../../log/log.h"
 #include <math.h>
 #include <stdlib.h>
-#include "../../convert/fd/source.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <assert.h>

@@ -1,5 +1,7 @@
 #include "../../mesh/load.h"
 #include <assert.h>
+#include "../../../convert/status.h"
+#include "../../../convert/source.h"
 #include "../../../convert/fd/source.h"
 #include <unistd.h>
 #include "../../../log/log.h"

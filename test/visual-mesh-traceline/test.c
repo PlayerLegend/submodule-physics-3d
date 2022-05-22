@@ -1,24 +1,30 @@
-#include "../../../draw-3d/buffer/loader.h"
-#include <assert.h>
-#include "../../../keyargs/keyargs.h"
-#include "../../../game-interface/init.h"
-#include "../../../game-interface/window.h"
 #include <stdlib.h>
-#include "../../../log/log.h"
+#include <assert.h>
+#include <fcntl.h>
+#include <math.h>
+#include "../../set_hull.h"
+#include "../../trace/def.h"
+#include "../../../vec/trace3.h"
+#include "../../trace/line.h"
 #include "../../../convert/status.h"
 #include "../../../convert/source.h"
 #include "../../../convert/fd/source.h"
-#include <unistd.h>
 #include "../../../gltf/convert.h"
+#include "../../../keyargs/keyargs.h"
+#include "../../../game-interface/window.h"
+#include "../../../game-interface/init.h"
+#include "../../../game-interface/time.h"
+#include "../../../range/alloc.h"
+#include "../../../draw-3d/shader/def.h"
+#include "../../../draw-3d/shader/load.h"
+#include "../../../glad/glad.h"
+#include "../../../draw-3d/mesh/def.h"
+#include "../../../draw-3d/buffer/def.h"
+#include "../../../draw-3d/buffer/draw.h"
+#include "../../../draw-3d/buffer/loader.h"
 #include "../../../window/alloc.h"
 #include "../../../gltf/parse.h"
-#include "../../../draw-3d/shader/def.h"
-#include "../../../draw-3d/buffer/draw.h"
-#include <fcntl.h>
-#include "../../../draw-3d/shader/load.h"
-#include "../../../game-interface/time.h"
-#include <math.h>
-#include "../../../range/alloc.h"
+#include "../../../log/log.h"
 
 void load_glb_path (glb * target, const char * path)
 {
@@ -54,10 +60,18 @@ int main(int argc, char * argv[])
 
     range_draw_mesh draw_meshes;
     draw_buffer_mesh_access(&draw_meshes, draw_buffer);
+
+    vec_object3 origin[2] =
+    {
+	VEC_OBJECT3_INITIALIZER,
+	VEC_OBJECT3_INITIALIZER,
+    };
     
     draw_mesh_instance instance[2] =
-	{ { .origin.scale = 1.0, .origin.quaternion = { .w = 1 } },
-	  { .origin.scale = 1.0, .origin.quaternion = { .w = 1 } }, };
+	{
+	    { .origin = origin },
+	    { .origin = origin + 1 },
+	};
     
     mesh_instance_set_mesh(instance, draw_meshes.begin);
     mesh_instance_set_mesh(instance + 1, draw_meshes.begin + 1);
@@ -72,11 +86,19 @@ int main(int argc, char * argv[])
     double start_time = 0;
     double delta_time;
 
+    phys_object object = { .origin = origin };
+
+    assert (phys_object_set_hull(&object, glb_range.begin));
+    
+    float distance = 20;
+    
+    phys_trace_result trace_result;
+    vec_trace3 trace = { .position = { .x = 0, .y = 1.0 - distance, .z = 0 }, .direction = { 0, 1, 0 }, .distance = distance };
+    
     while (!ui_window_should_close(window))
     {
 	draw_buffer_draw (draw_buffer, &view, shader);
-	instance[0].origin.position.x = sin(start_time);
-	//view.position.x = sin(start_time);
+	instance[0].origin->position = (fvec3){ .x = sin(start_time) };
 	delta_time = ui_get_time() - start_time;
 	start_time += delta_time;
 	axis.z = delta_time;
@@ -85,7 +107,13 @@ int main(int argc, char * argv[])
 	{
 	    continue;
 	}
-	vec4_apply_rotation_axis(&instance[0].origin.quaternion, &axis);
+	
+	vec4_apply_rotation_axis(&instance[0].origin->quaternion, &axis);
+
+	phys_trace_line_object(&trace_result, &object, &trace);
+        
+	instance[1].origin->position = trace_result.end;
+
 	assert (glGetError() == GL_NO_ERROR);
 	ui_window_swap(window);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
