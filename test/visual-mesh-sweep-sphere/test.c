@@ -97,13 +97,15 @@ int main(int argc, char * argv[])
     //phys_sweep sweep_result = { .path = { .vertex = { .x = 0, .y = 1.0 - distance, .z = 0 }, .direction = { 0, 1, 0 }, .distance = distance } };
 
     //phys_trace_result trace_result;
-    fvec3_line trace = { .vertex = { .x = 0, .y = 1.0 - distance, .z = 0 }, .direction = { 0, 1, 0 }, .distance = distance };
+    fvec3_line trace = { .ray.vertex = { .x = 0, .y = 1.0 - distance, .z = 0 }, .ray.direction = { 0, 1, 0 }, .distance = distance };
 
     assert (!range_is_empty(object.mesh));
 
     phys_mesh_sweep sweep = {0};
 
     fvec3_aligned_ellipsoid shape = { .radius = { 1, 1, 1 } };
+
+    //fvec3 initial_axis = { 1, 0, 0 }; vec4_apply_rotation_axis(&instance[0].origin->quaternion, &initial_axis);
     
     while (!ui_window_should_close(window))
     {
@@ -113,6 +115,7 @@ int main(int argc, char * argv[])
 	start_time += delta_time;
 	axis.z = delta_time;
 	//axis.x = delta_time * sin(start_time);
+	axis.x = delta_time;
 	if (start_time == 0)
 	{
 	    continue;
@@ -123,8 +126,8 @@ int main(int argc, char * argv[])
 	phys_object_sweep_aligned_ellipsoid(&object, &sweep, &trace, &shape);
 
 	//	phys_trace_line_object(&trace_result, &object, &trace);
-	//if (sweep.result.is_hit)
-	//  log_debug("Distance %f hit %d", sweep.result.path.distance, sweep.result.is_hit);
+	if (!sweep.result.is_hit)
+	    log_debug("Distance %f hit %d", sweep.result.path.distance, sweep.result.is_hit);
         
 	instance[1].origin->position = fvec3_line_point(&sweep.result.path, sweep.result.path.distance);
 

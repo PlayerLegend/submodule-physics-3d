@@ -496,7 +496,7 @@ void phys_mesh_sweep_point_brute (phys_sweep * sweep, const range_const_phys_mes
     for_range (i, *nodes)
     {
 	//log_debug("Normal " VEC3_FORMSPEC, VEC3_FORMSPEC_ARG(i->tri.normal));
-	if (fvec3_triangle_ray_intersect_distance(&distance, &i->tri, &sweep->path))
+	if (fvec3_triangle_ray_intersect_distance(&distance, &i->tri, &sweep->path.ray))
 	{
 	    phys_sweep_update(sweep, &i->tri.normal, distance);
 	}
@@ -517,7 +517,7 @@ void phys_mesh_sweep_point (phys_mesh_sweep * sweep)
 	node = phys_mesh_sweep_pop (sweep);
 	phys_mesh_sweep_push (sweep, node->plane.intersect);
 
-	if (fvec3_triangle_ray_intersect_distance(&distance, &node->tri, &sweep->result.path))
+	if (fvec3_triangle_ray_intersect_distance(&distance, &node->tri, &sweep->result.path.ray))
 	{
 	    phys_sweep_update(&sweep->result, &node->tri.normal, distance);
 	    push_same_side (sweep, node);
@@ -540,7 +540,7 @@ void phys_mesh_sweep_point (phys_mesh_sweep * sweep)
     log_debug("Percent use: %f", (float) 100.0 * (float) count / (float) sweep->_total_size);
 }
 
-static void cylinder_normal (fvec3 * result, const fvec3_ray * cylinder, const fvec3 * endpoint)
+void cylinder_normal (fvec3 * result, const fvec3_ray * cylinder, const fvec3 * endpoint)
 {
     fvec3 delta = { vec3_subtract_init(*endpoint, cylinder->vertex) };
     fvec3_normalize(&delta, &delta);
@@ -548,9 +548,85 @@ static void cylinder_normal (fvec3 * result, const fvec3_ray * cylinder, const f
     *result = (fvec3){ vec3_cross_init(cross, cylinder->direction) };
 }
 
+#define square(x) (x) * (x)
+
 bool sweep_point_cylinder (phys_sweep * sweep, const fvec3 * cylinder_begin, const fvec3 * cylinder_end, fvec cylinder_radius)
 {
     fvec3_line cylinder_line;
+
+    fvec3_line_from_points(&cylinder_line, cylinder_begin, cylinder_end);
+
+    /*fvec test = vec3_dot(cylinder_line.ray.direction, sweep->path.ray.direction);
+
+    if (test < -FVEC_EPSILON || test > FVEC_EPSILON)
+    {
+	return false;
+	}*/
+    
+    fvec3 point_delta = { vec3_subtract_init(sweep->path.ray.vertex, *cylinder_begin) };
+
+    fvec quad_a = vec3_dot(sweep->path.ray.direction, sweep->path.ray.direction) - square(vec3_dot(sweep->path.ray.direction, cylinder_line.ray.direction));
+    fvec quad_b = 2 * vec3_dot(sweep->path.ray.direction, point_delta) - 2 * vec3_dot(sweep->path.ray.direction, cylinder_line.ray.direction) * vec3_dot(point_delta, cylinder_line.ray.direction);
+    fvec quad_c = vec3_dot(point_delta, point_delta) - square(vec3_dot(point_delta, cylinder_line.ray.direction)) - cylinder_radius * cylinder_radius;
+
+    fvec quad_discriminate = quad_b * quad_b - 4 * quad_a * quad_c;
+
+    if (quad_discriminate < 0)
+    {
+	return false;
+    }
+
+    fvec sqrt_quad_discriminate = sqrt(quad_discriminate);
+
+    fvec inv_2a = 1.0 / (2.0 * quad_a);
+
+    fvec x1 = (-quad_b + sqrt_quad_discriminate) * inv_2a;
+
+    if (x1 < 0)
+    {
+	return false;
+    }
+    
+    fvec x2 = (-quad_b - sqrt_quad_discriminate) * inv_2a;
+
+    if (x2 < 0)
+    {
+	return false;
+    }
+
+    fvec distance = x1 < x2 ? x1 : x2;
+
+    fvec3 endpoint = fvec3_line_point(&sweep->path, distance);
+
+    fvec3 endpoint_delta = { vec3_subtract_init(endpoint, *cylinder_begin) };
+
+    fvec hit_height = vec3_dot(endpoint_delta, cylinder_line.ray.direction);
+
+    //log_debug("math error %f", error);
+
+    if (hit_height < 0 || hit_height > cylinder_line.distance)
+    {
+	return false;
+    }
+
+    fvec error = vec3_dot(endpoint_delta, endpoint_delta) - cylinder_radius * cylinder_radius - hit_height * hit_height;
+    //fvec error2 = quad_a * distance * distance + quad_b * distance + quad_c;
+
+    if (error > FVEC_EPSILON)
+    {
+	//log_debug("math error %f,%f at hit height %f/%f", error, error2, hit_height, cylinder_line.distance);
+	//return false;
+    }
+    else
+    {
+	//log_debug("No error");
+    
+	//log_debug("Directions " VEC3_FORMSPEC " dot " VEC3_FORMSPEC " = %f", VEC3_FORMSPEC_ARG(sweep->path.ray.direction), VEC3_FORMSPEC_ARG(cylinder_line.ray.direction), vec3_dot(sweep->path.ray.direction, cylinder_line.ray.direction));
+    }
+    
+    return phys_sweep_update_no_normal(sweep, distance);
+    
+    /*fvec3_line cylinder_line;
 
     fvec3_line_from_points(&cylinder_line, cylinder_begin, cylinder_end);
 
@@ -568,7 +644,7 @@ bool sweep_point_cylinder (phys_sweep * sweep, const fvec3 * cylinder_begin, con
     }
     
     fvec quadratic_b = 2 * vec2_dot(sweep_transform.direction, sweep_transform.vertex);
-    fvec quadratic_c = vec2_dot(sweep_transform.vertex, sweep_transform.vertex) - cylinder_radius;
+    fvec quadratic_c = vec2_dot(sweep_transform.vertex, sweep_transform.vertex) - cylinder_radius * cylinder_radius;
 
     fvec discriminate = quadratic_b * quadratic_b - 4 * quadratic_a * quadratic_c;
 
@@ -613,13 +689,74 @@ bool sweep_point_cylinder (phys_sweep * sweep, const fvec3 * cylinder_begin, con
 
     cylinder_normal(&sweep->hit_normal, &cylinder_line.ray, &endpoint);
 
+    return true;*/
+}
+bool sweep_point_sphere (phys_sweep * sweep, const fvec3 * sphere_position, fvec sphere_radius)
+{
+    fvec3 position_transform = { vec3_subtract_init(sweep->path.ray.vertex, *sphere_position) };
+
+    fvec quad_a = vec3_dot(sweep->path.ray.direction, sweep->path.ray.direction);
+    fvec quad_b = 2 * vec3_dot(sweep->path.ray.direction, position_transform);
+    fvec quad_c = vec3_dot(position_transform, position_transform) - sphere_radius * sphere_radius;
+
+    fvec quad_discriminate = quad_b * quad_b - 4 * quad_a * quad_c;
+
+    if (quad_discriminate < 0)
+    {
+	return false;
+    }
+
+    fvec sqrt_quad_discriminate = sqrt(quad_discriminate);
+
+    fvec inv_2a = 1.0 / (2.0 * quad_a);
+
+    fvec x1 = (-quad_b + sqrt_quad_discriminate) * inv_2a;
+
+    if (x1 < 0)
+    {
+	return false;
+    }
+    
+    fvec x2 = (-quad_b - sqrt_quad_discriminate) * inv_2a;
+
+    if (x2 < 0)
+    {
+	return false;
+    }
+
+    fvec distance = x1 < x2 ? x1 : x2;
+
+    if (!phys_sweep_update_no_normal(sweep, distance))
+    {
+	return false;
+    }
+
+    fvec3 endpoint = fvec3_line_point(&sweep->path, distance);
+
+    fvec3 endpoint_delta = { vec3_subtract_init(endpoint, *sphere_position) };
+
+    fvec3_normalize(&sweep->hit_normal, &endpoint_delta);
+    
     return true;
+}
+
+bool sweep_point_triangle (phys_sweep * sweep, fvec3_triangle * world)
+{
+    fvec distance;
+    if (fvec3_triangle_ray_intersect_distance(&distance, world, &sweep->path.ray))
+    {
+	return phys_sweep_update(sweep, &world->normal, distance);
+    }
+    else
+    {
+	return false;
+    }
 }
 
 void phys_mesh_sweep_aligned_ellipsoid (phys_mesh_sweep * sweep, fvec3_aligned_ellipsoid * shape)
 {
     phys_mesh_node * node;
-    fvec distance;
+    //fvec distance;
 
     size_t count = 0;
 
@@ -628,6 +765,9 @@ void phys_mesh_sweep_aligned_ellipsoid (phys_mesh_sweep * sweep, fvec3_aligned_e
 	fvec3_triangle point;
     }
 	transform;
+
+    fvec begin_distance;
+    fvec end_distance;
 
     while ( !range_is_empty (sweep->todo.region) )
     {
@@ -638,7 +778,32 @@ void phys_mesh_sweep_aligned_ellipsoid (phys_mesh_sweep * sweep, fvec3_aligned_e
 
 	fvec3_aligned_ellipsoid_unit_sphere_transform_triangle(&transform.unit_sphere, shape, &node->tri);
 	fvec3_unit_sphere_point_transform_triangle(&transform.point, &transform.unit_sphere);
+
+#if 1
+	if (sweep_point_triangle(&sweep->result, &transform.point))
+	{
+	    push_same_side(sweep, node);
+	    continue;
+	}
+
+	begin_distance = fvec3_plane_distance(transform.unit_sphere, sweep->result.path.ray.vertex);
+	end_distance = fvec3_plane_distance(transform.unit_sphere, sweep->result.endpoint);
+
+	if ( (begin_distance < -1 && end_distance < -1) || (begin_distance > 1 && end_distance > 1) )
+	{
+	    push_same_side(sweep, node);
+	    continue;
+	}
 	
+	push_both_sides (sweep, node);
+	
+	/*push_both_sides (sweep, node);
+	if (fvec3_triangle_ray_intersect_distance(&distance, &transform.point, &sweep->result.path))
+	{
+	    phys_sweep_update(&sweep->result, &node->tri.normal, distance);
+	    continue;
+	    }*/
+#else
 	if (fvec3_triangle_ray_intersect_distance(&distance, &transform.point, &sweep->result.path))
 	{
 	    phys_sweep_update(&sweep->result, &node->tri.normal, distance);
@@ -659,10 +824,16 @@ void phys_mesh_sweep_aligned_ellipsoid (phys_mesh_sweep * sweep, fvec3_aligned_e
 		push_both_sides(sweep, node);
 	    }
 	}
-
+#endif
 	sweep_point_cylinder(&sweep->result, node->tri.vertex, node->tri.vertex + 1, 1);
 	sweep_point_cylinder(&sweep->result, node->tri.vertex + 1, node->tri.vertex + 2, 1);
 	sweep_point_cylinder(&sweep->result, node->tri.vertex + 2, node->tri.vertex, 1);
+
+	sweep_point_sphere(&sweep->result, node->tri.vertex, 1);
+	sweep_point_sphere(&sweep->result, node->tri.vertex + 1, 1);
+	sweep_point_sphere(&sweep->result, node->tri.vertex + 2, 1);
+
+	
     }
 
     //log_debug("Percent use: %f", (float) 100.0 * (float) count / (float) sweep->_total_size);

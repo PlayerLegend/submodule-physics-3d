@@ -11,6 +11,7 @@ typedef struct {
     bool is_hit;
     fvec3 hit_normal;
     fvec3_line path;
+    fvec3 endpoint;
 }
     phys_sweep;
 
