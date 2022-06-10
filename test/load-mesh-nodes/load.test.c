@@ -1,16 +1,28 @@
-#include "../../mesh/load.h"
+/*#include "../../mesh/load.h"
 #include <assert.h>
 #include "../../../convert/status.h"
 #include "../../../convert/source.h"
 #include "../../../convert/fd/source.h"
 #include <unistd.h>
 #include "../../../log/log.h"
-#include "../../mesh/build.h"
+#include "../../mesh.h"
 #include "../../../gltf/convert.h"
 #include "../../../gltf/parse.h"
 #include <stdio.h>
 #include "../../../window/alloc.h"
-#include "../../../range/alloc.h"
+#include "../../../range/alloc.h"*/
+
+#include <unistd.h>
+#include "../../mesh.h"
+#include "../../../convert/status.h"
+#include "../../../convert/source.h"
+#include "../../../convert/fd/source.h"
+#include "../../../gltf/convert.h"
+#include "../../../log/log.h"
+#include <assert.h>
+#include "../../../window/alloc.h"
+#include "../../../gltf/parse.h"
+#include <stdlib.h>
 
 int main(int argc, char * argv[])
 {
@@ -27,6 +39,15 @@ int main(int argc, char * argv[])
 	log_fatal ("Failed to load glb from stdin");
     }
 
+    phys_mesh_node * mesh;
+
+    assert (phys_mesh_load(&mesh, &glb));
+    
+    window_clear (buffer);
+    glb_clear (&glb);
+
+    free (mesh);
+/*
     window_phys_mesh_tri tris = {0};
 
     if (!phys_mesh_tri_load_glb(&tris, &glb))
@@ -42,7 +63,7 @@ int main(int argc, char * argv[])
     window_clear (tris);
     range_clear (nodes);
     glb_clear (&glb);
-
+*/
     return 0;
     
 fail:

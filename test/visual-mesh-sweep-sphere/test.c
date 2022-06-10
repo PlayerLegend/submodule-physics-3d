@@ -35,6 +35,7 @@ void load_glb_path (glb * target, const char * path)
     assert (glb_load_from_source(target, &fd_source.source));
     glb_toc_copy_mem(&target->toc);
     convert_source_clear(&fd_source.source);
+    window_rewrite(buffer);
 }
 
 int main(int argc, char * argv[])
@@ -77,7 +78,7 @@ int main(int argc, char * argv[])
     mesh_instance_set_mesh(instance, draw_meshes.begin);
     mesh_instance_set_mesh(instance + 1, draw_meshes.begin + 1);
 
-    draw_view view = { .quaternion = { .w = 1 }, .position.z = -5 };
+    draw_view view = { .quaternion = { .w = 1 }, .position.z = -10, .position.y = 1 };
 
     shader_program shader;
     assert (shader_load_path(&shader, .vertex_path = argv[3], .fragment_path = argv[4]));
@@ -101,6 +102,8 @@ int main(int argc, char * argv[])
     assert (!range_is_empty(object.mesh));
 
     phys_mesh_sweep sweep = {0};
+
+    fvec3_aligned_ellipsoid shape = { .radius = { 1, 1, 1 } };
     
     while (!ui_window_should_close(window))
     {
@@ -109,7 +112,7 @@ int main(int argc, char * argv[])
 	delta_time = ui_get_time() - start_time;
 	start_time += delta_time;
 	axis.z = delta_time;
-	axis.x = delta_time * sin(start_time);
+	//axis.x = delta_time * sin(start_time);
 	if (start_time == 0)
 	{
 	    continue;
@@ -117,10 +120,11 @@ int main(int argc, char * argv[])
 	
 	vec4_apply_rotation_axis(&instance[0].origin->quaternion, &axis);
 
-	phys_object_sweep_point(&object, &sweep, &trace);
+	phys_object_sweep_aligned_ellipsoid(&object, &sweep, &trace, &shape);
 
 	//	phys_trace_line_object(&trace_result, &object, &trace);
-	log_debug("Distance %f hit %d", sweep.result.path.distance, sweep.result.is_hit);
+	//if (sweep.result.is_hit)
+	//  log_debug("Distance %f hit %d", sweep.result.path.distance, sweep.result.is_hit);
         
 	instance[1].origin->position = fvec3_line_point(&sweep.result.path, sweep.result.path.distance);
 
